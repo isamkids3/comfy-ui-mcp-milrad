@@ -1,0 +1,4 @@
+{
+  "name": "image_image_3ref",
+  "description": "Generate a new image using three reference images and a text prompt to guide the creation. This tool blends the subjects, compositions, or styles of all three input images (e.g. placing characters/elements from reference images 1 and 2 together in a new setting/background from reference image 3). The output resolution is matched to the resolution of the first reference image."
+}

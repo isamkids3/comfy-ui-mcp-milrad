@@ -1,0 +1,4 @@
+{
+  "name": "image_image_2ref",
+  "description": "Generate a new image using two reference images and a text prompt to guide the creation. This tool blends the subjects, compositions, or styles of both input images (e.g. placing characters/elements from both reference images together in a new setting described by the prompt). The output resolution is matched to the resolution of the first reference image."
+}

@@ -1,0 +1,25 @@
+{
+  "name": "analyze_image",
+  "description": "Analyze an uploaded reference image or quality-check a generated image using the Qwen3VL-8B vision model. Returns a concise visual description, subject breakdown, and quality assessment (capped at 128 tokens) to guide iterative refinement. Only call this tool for uploaded reference images or generated output images.",
+  "override_mappings": {
+    "image_path": [
+      [
+        "26",
+        "image"
+      ]
+    ],
+    "prompt": [
+      [
+        "25",
+        "custom_prompt"
+      ]
+    ]
+  },
+  "constraints": {
+    "model_name": {
+      "enum": [
+        "Qwen3VL-8B-Instruct-F16.gguf"
+      ]
+    }
+  }
+}

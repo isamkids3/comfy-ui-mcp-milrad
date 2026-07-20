@@ -1,0 +1,4 @@
+{
+  "name": "mask_image_image",
+  "description": "Edit or replace specific parts of an existing image using a mask and a text instruction. This tool performs localized inpainting on the areas covered by the mask. The input image must contain both RGB image data and a transparency mask (loaded in its alpha channel). Use this tool when you want to modify localized details of an image (e.g. replace a shirt, add a cat on a shoulder, swap a background item) while keeping the rest of the canvas completely unchanged."
+}

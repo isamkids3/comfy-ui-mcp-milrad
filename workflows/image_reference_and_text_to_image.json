@@ -1,0 +1,269 @@
+{
+  "9": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE Loader"
+    }
+  },
+  "10": {
+    "inputs": {
+      "image": "PARAM_REFERENCE_IMAGE"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Reference Image"
+    }
+  },
+  "12": {
+    "inputs": {
+      "prompt": "PARAM_PROMPT",
+      "max_length": 2048,
+      "sampling_mode": "on",
+      "sampling_mode.temperature": 0.7,
+      "sampling_mode.top_k": 64,
+      "sampling_mode.top_p": 0.95,
+      "sampling_mode.min_p": 0.05,
+      "sampling_mode.repetition_penalty": 1.05,
+      "sampling_mode.seed": 0,
+      "sampling_mode.presence_penalty": 0,
+      "thinking": false,
+      "use_default_template": false,
+      "clip": [
+        "14",
+        0
+      ],
+      "image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "TextGenerate",
+    "_meta": {
+      "title": "Qwen3VL (TextGenerate)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "samples": [
+        "120",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "14": {
+    "inputs": {
+      "clip_name": "qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "ideogram4",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "CLIP Loader (Ideogram4)"
+    }
+  },
+  "16": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Sampler Select (Euler)"
+    }
+  },
+  "17": {
+    "inputs": {
+      "steps": 20,
+      "width": [
+        "37",
+        0
+      ],
+      "height": [
+        "37",
+        1
+      ],
+      "mu": 0.5,
+      "std": 1.75
+    },
+    "class_type": "Ideogram4Scheduler",
+    "_meta": {
+      "title": "Ideogram4 Scheduler"
+    }
+  },
+  "18": {
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "Random Noise"
+    }
+  },
+  "23": {
+    "inputs": {
+      "unet_name": "ideogram4_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET Loader (Ideogram4)"
+    }
+  },
+  "24": {
+    "inputs": {
+      "text": [
+        "12",
+        0
+      ],
+      "clip": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode"
+    }
+  },
+  "30": {
+    "inputs": {
+      "width": [
+        "37",
+        0
+      ],
+      "height": [
+        "37",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Empty Flux2 Latent Image"
+    }
+  },
+  "101": {
+    "inputs": {
+      "conditioning": [
+        "24",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Conditioning Zero Out (Negative)"
+    }
+  },
+  "120": {
+    "inputs": {
+      "noise": [
+        "18",
+        0
+      ],
+      "guider": [
+        "155",
+        0
+      ],
+      "sampler": [
+        "16",
+        0
+      ],
+      "sigmas": [
+        "17",
+        0
+      ],
+      "latent_image": [
+        "30",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Sampler Custom Advanced"
+    }
+  },
+  "154": {
+    "inputs": {
+      "unet_name": "ideogram4_unconditional_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET Loader (Unconditional)"
+    }
+  },
+  "155": {
+    "inputs": {
+      "cfg": 7,
+      "model": [
+        "157",
+        0
+      ],
+      "positive": [
+        "24",
+        0
+      ],
+      "model_negative": [
+        "154",
+        0
+      ],
+      "negative": [
+        "101",
+        0
+      ]
+    },
+    "class_type": "DualModelGuider",
+    "_meta": {
+      "title": "Dual Model Guider"
+    }
+  },
+  "157": {
+    "inputs": {
+      "cfg": 3,
+      "start_percent": 0.7,
+      "end_percent": 1,
+      "model": [
+        "23",
+        0
+      ]
+    },
+    "class_type": "CFGOverride",
+    "_meta": {
+      "title": "CFG Override"
+    }
+  },
+  "158": {
+    "inputs": {
+      "filename_prefix": "Ideogram_4.0",
+      "images": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "37": {
+    "inputs": {
+      "aspect_ratio": "PARAM_ASPECT_RATIO",
+      "megapixels": 1,
+      "multiple": 8
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution Selector"
+    }
+  }
+}

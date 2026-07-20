@@ -1,0 +1,4 @@
+{
+  "name": "image_image",
+  "description": "Edit or modify an existing image using a text instruction. This tool operates directly on the pixels of the provided input image — it does NOT generate a new image from scratch. Because it works by inpainting/diffusing on top of the original image canvas, the output resolution is fixed to the input image's resolution and CANNOT be changed. Do NOT pass width, height, or aspect_ratio — they are not accepted. Use this tool when you want to make targeted changes to an existing image (e.g. change a colour, swap an element, adjust lighting) while preserving the overall composition."
+}

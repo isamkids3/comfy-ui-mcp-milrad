@@ -1,0 +1,27 @@
+# OS-specific files
+.DS_Store
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Configuration
+.env
+*.env
+
+# Output test files & archive
+archive/
+output_test.png
+output_test_*.png
+*.png
+*.jpg
+*.jpeg

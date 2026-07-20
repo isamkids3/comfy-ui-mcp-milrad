@@ -1,0 +1,47 @@
+{
+  "25": {
+    "inputs": {
+      "model_name": "Qwen3VL-8B-Instruct-F16.gguf",
+      "preset_prompt": "🖼️ Ultra Detailed Description",
+      "custom_prompt": "PARAM_PROMPT",
+      "max_tokens": 128,
+      "keep_model_loaded": true,
+      "seed": 1111506995,
+      "image": [
+        "26",
+        0
+      ]
+    },
+    "class_type": "AILab_QwenVL_GGUF",
+    "_meta": {
+      "title": "QwenVL (GGUF)"
+    }
+  },
+  "26": {
+    "inputs": {
+      "image_path_or_URL": "",
+      "image": "PARAM_IMAGE_PATH",
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "scale_by": 1,
+      "resize_mode": "longest_side",
+      "size": 0
+    },
+    "class_type": "AILab_LoadImage",
+    "_meta": {
+      "title": "Load Image (RMBG) 🖼️"
+    }
+  },
+  "27": {
+    "inputs": {
+      "source": [
+        "25",
+        0
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "Preview as Text"
+    }
+  }
+}

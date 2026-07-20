@@ -1,0 +1,123 @@
+# ComfyUI MCP Server - Live Testing Prompt
+
+Copy this entire prompt into a new Cursor instance to test the ComfyUI MCP Server tools.
+
+---
+
+## Context
+
+I have a ComfyUI MCP Server that has been refactored with architectural improvements:
+- Stable asset identity using (filename, subfolder, type) instead of URLs
+- Full provenance storage (ComfyUI history + submitted workflows)
+- New job management tools (queue status, polling, asset browsing)
+- Direct API access following "thin adapter" pattern
+
+## Your Task
+
+Test the following MCP tools and verify they work correctly:
+
+### 1. Generate an Image
+Call `generate_image` with:
+- prompt: "a beautiful sunset over mountains"
+- width: 512
+- height: 512
+- steps: 20
+
+**Verify the response includes**:
+- asset_id (UUID)
+- prompt_id (for job polling)
+- filename (stable identity)
+- subfolder (usually empty)
+- folder_type (usually "output")
+- asset_url (computed from stable identity)
+
+**Save these values** for later tests.
+
+### 2. Poll Job Status
+Call `get_job` with the prompt_id from step 1.
+
+**Verify**:
+- Returns status: "completed", "running", or "queued"
+- If completed, includes `outputs` and `history`
+- If running/queued, includes helpful message
+
+**If still running**, wait and poll again until completed.
+
+### 3. Check Queue Status
+Call `get_queue_status` (no parameters).
+
+**Verify**:
+- Returns `queue_running` and `queue_pending` lists
+- Returns `running_count` and `pending_count` numbers
+
+### 4. List Assets
+Call `list_assets` with limit: 10.
+
+**Verify**:
+- Returns array of assets
+- Each asset has: asset_id, filename, workflow_id, prompt_id
+- Assets sorted newest first
+
+**Then test filtering** by calling `list_assets` with:
+- limit: 10
+- workflow_id: "generate_image"
+
+Should only return assets from that workflow.
+
+### 5. Get Asset Metadata
+Call `get_asset_metadata` with an asset_id from step 1 or 4.
+
+**Verify**:
+- Returns all asset details
+- **CRITICAL**: `comfy_history` is NOT null (full provenance)
+- **CRITICAL**: `submitted_workflow` is NOT null (enables regeneration)
+- Includes prompt_id for history link
+
+### 6. Test URL Encoding
+Generate another image, then check its asset_url.
+
+**Verify**:
+- Special characters are URL-encoded (e.g., %20 for spaces, %23 for #)
+- No unencoded spaces in URL
+
+### 7. View Image (Optional)
+Call `view_image` with:
+- asset_id: (from step 1)
+- mode: "thumb"
+
+**Verify**:
+- Returns image data or metadata
+- Works with stable identity (not URL-dependent)
+
+## Success Criteria
+
+All tests pass if:
+✅ Response includes filename/subfolder/type (stable identity)
+✅ Job polling returns valid status and history
+✅ Queue status shows running/pending jobs
+✅ Asset listing returns multiple assets, filtering works
+✅ Metadata includes comfy_history AND submitted_workflow (both not null)
+✅ URLs are properly encoded
+✅ view_image works
+
+## Report Back
+
+After testing, report:
+1. Which tests passed/failed
+2. Any errors encountered
+3. Whether comfy_history and submitted_workflow are present (critical for provenance)
+4. Any missing fields or unexpected behavior
+5. Suggestions for improvements
+
+## Quick Start
+
+If you want to test quickly, just:
+1. Generate an image
+2. Poll until complete
+3. List assets
+4. Get metadata and verify comfy_history/submitted_workflow are present
+5. Report results
+
+---
+
+**Note**: Ensure ComfyUI is running at http://localhost:8188 and the MCP server is running before testing.
