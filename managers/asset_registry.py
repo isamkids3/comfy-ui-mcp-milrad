@@ -79,6 +79,25 @@ class AssetRegistry:
             # Calculate expiration
             expires_at = datetime.now() + timedelta(hours=self.ttl_hours)
             
+            # Infer mime_type from filename if not provided or application/octet-stream
+            if not mime_type or mime_type == "application/octet-stream":
+                import mimetypes
+                guessed_type, _ = mimetypes.guess_type(filename)
+                if guessed_type:
+                    mime_type = guessed_type
+                elif filename.lower().endswith(".png"):
+                    mime_type = "image/png"
+                elif filename.lower().endswith((".jpg", ".jpeg")):
+                    mime_type = "image/jpeg"
+                elif filename.lower().endswith(".webp"):
+                    mime_type = "image/webp"
+                elif filename.lower().endswith(".gif"):
+                    mime_type = "image/gif"
+                elif filename.lower().endswith(".mp4"):
+                    mime_type = "video/mp4"
+                elif filename.lower().endswith(".webm"):
+                    mime_type = "video/webm"
+
             # Create record
             record = AssetRecord(
                 asset_id=asset_id,

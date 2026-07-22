@@ -1,6 +1,7 @@
 """Shared helper functions for tool implementations"""
 
 import logging
+import os
 from typing import Any, Dict, Optional
 
 from asset_processor import encode_preview_for_mcp, fetch_asset_bytes, get_cache_key
@@ -34,8 +35,13 @@ def register_and_build_response(
         Response data dict with asset_id, asset_url, metadata, etc.
         If the workflow is still running (timeout), returns a job handle dict instead.
     """
-    # If the result is a "still running" job handle, pass it through directly
+    # If the result is a "still running" job handle, add agent instructions and return
     if result.get("status") == "running":
+        prompt_id = result.get("prompt_id", "")
+        result["message"] = (
+            f"Generation is currently running (prompt_id: '{prompt_id}'). "
+            f"Please call get_job(prompt_id='{prompt_id}') to check status until status is 'completed'."
+        )
         return result
 
     # Register asset in registry using stable identity
@@ -61,11 +67,44 @@ def register_and_build_response(
         metadata=record_metadata,
         session_id=session_id
     )
-    
+
+    # Save local copy to COMFYUI_OUTPUT_ROOT if configured and fetch bytes
+    output_root = os.getenv("COMFYUI_OUTPUT_ROOT")
+    comfy_base = os.getenv("COMFYUI_URL", "http://localhost:8188").rstrip("/")
+    direct_comfy_url = f"{comfy_base}/view?filename={asset_record.filename}&type={asset_record.folder_type}"
+    if asset_record.subfolder:
+        direct_comfy_url += f"&subfolder={asset_record.subfolder}"
+
+    fetched_bytes = None
+    if output_root and asset_record.filename:
+        try:
+            dest_dir = os.path.join(output_root, asset_record.subfolder) if asset_record.subfolder else output_root
+            os.makedirs(dest_dir, exist_ok=True)
+            dest_path = os.path.join(dest_dir, asset_record.filename)
+            
+            # Legacy fallback: check if file was saved directly under output_root without subfolder
+            flat_path = os.path.join(output_root, asset_record.filename)
+            if not os.path.exists(dest_path) and os.path.exists(flat_path) and flat_path != dest_path:
+                import shutil
+                shutil.move(flat_path, dest_path)
+                logger.info(f"Moved legacy asset from {flat_path} to subfolder path {dest_path}")
+
+            if not os.path.exists(dest_path):
+                fetched_bytes = fetch_asset_bytes(direct_comfy_url)
+                with open(dest_path, "wb") as f:
+                    f.write(fetched_bytes)
+                logger.info(f"Saved generated asset to COMFYUI_OUTPUT_ROOT: {dest_path}")
+            else:
+                with open(dest_path, "rb") as f:
+                    fetched_bytes = f.read()
+        except Exception as e:
+            logger.warning(f"Could not save copy to COMFYUI_OUTPUT_ROOT ({output_root}): {e}")
+
     # Build response data
     # Use asset_record.asset_url (computed from stable identity)
     asset_url = asset_record.asset_url or result.get("asset_url", "")
     response_data = {
+        "status": "completed",
         "asset_id": asset_record.asset_id,
         "asset_url": asset_url,
         "image_url": asset_url,  # Backward compatibility
@@ -78,6 +117,7 @@ def register_and_build_response(
         "width": asset_record.width,
         "height": asset_record.height,
         "bytes_size": asset_record.bytes_size,
+        "instructions": f"Display the image using Markdown embed syntax ![Generated Image]({asset_url}) AND provide an explicit clickable text link [Open / Download Image]({asset_url}) directly below it.",
     }
     
     if tool_name:
@@ -89,16 +129,11 @@ def register_and_build_response(
             # Only generate preview for images
             supported_types = ("image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif")
             if asset_record.mime_type in supported_types:
-                # Use asset URL (computed from stable identity)
-                preview_url = asset_url
-                if not preview_url:
-                    # Fallback: compute from stable identity
-                    preview_url = asset_record.get_asset_url(asset_registry.comfyui_base_url)
-                # Use new encoding function with conservative budget
-                image_bytes = fetch_asset_bytes(preview_url)
+                if fetched_bytes is None:
+                    fetched_bytes = fetch_asset_bytes(direct_comfy_url)
                 cache_key = get_cache_key(asset_record.asset_id, 256, 70)
                 encoded = encode_preview_for_mcp(
-                    image_bytes,
+                    fetched_bytes,
                     max_dim=256,
                     max_b64_chars=100_000,  # ~100KB base64
                     quality=70,

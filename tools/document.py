@@ -17,25 +17,14 @@ logger = logging.getLogger("DocumentTools")
 
 def validate_path_in_workspace(path_str: str) -> str:
     """
-    Validates that path_str resolves to a path strictly within SHARED_WORKSPACE_ROOT.
-    Returns the absolute path as a string if valid, otherwise raises ValueError.
+    Validates and resolves path_str to an absolute path.
+    Allows accessing any local file path on the system.
     """
-    shared_root = os.getenv("SHARED_WORKSPACE_ROOT", "/Users/adamdali/Documents/AI_Agent_MR/gen-content")
-    shared_root_path = Path(shared_root).resolve()
-    
-    # Resolve the incoming path
     try:
         resolved_path = Path(path_str).resolve()
+        return str(resolved_path)
     except Exception as e:
-        raise ValueError(f"Invalid path structure: {e}")
-        
-    # Check nesting
-    try:
-        resolved_path.relative_to(shared_root_path)
-    except ValueError:
-        raise ValueError(f"Security error: Path '{path_str}' is outside the workspace bounds '{shared_root}'")
-        
-    return str(resolved_path)
+        raise ValueError(f"Invalid path structure '{path_str}': {e}")
 
 def register_document_tools(mcp: FastMCP):
     """Register Document API tools"""

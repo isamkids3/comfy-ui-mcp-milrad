@@ -3,6 +3,7 @@ requests>=2.31.0
 mcp>=0.9.0
 websockets>=12.0
 aiohttp>=3.9.0
+pyngrok>=7.1.0
 
 # Image processing (required for view_image tool)
 Pillow>=10.0.0

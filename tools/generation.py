@@ -94,6 +94,7 @@ def register_workflow_generation_tools(
     def _register_workflow_tool(definition: WorkflowToolDefinition):
         def _tool_impl(*args, **kwargs):
             # Extract return_inline_preview and session_id if present (not a workflow parameter)
+            # Default return_inline_preview to False so agents receive clean asset_url Markdown links
             return_inline_preview = kwargs.pop("return_inline_preview", False)
             session_id = kwargs.pop("session_id", None)
             
@@ -221,7 +222,7 @@ def register_workflow_generation_tools(
                 result = comfyui_client.run_custom_workflow(
                     workflow,
                     preferred_output_keys=definition.output_preferences,
-                    max_attempts=800,  # ~13 min — allows slow video generation models (~343s)
+                    max_attempts=15,  # 15s max sync wait — avoids HTTP client timeouts, returns job handle if longer
                 )
                 
                 # Format original_prompt for metadata registration
@@ -334,8 +335,18 @@ def register_workflow_generation_tools(
         _tool_impl.__signature__ = inspect.Signature(parameters, return_annotation=dict)
         _tool_impl.__annotations__ = annotations
         _tool_impl.__name__ = f"tool_{definition.tool_name}"
-        _tool_impl.__doc__ = definition.description
-        mcp.tool(name=definition.tool_name, description=definition.description)(_tool_impl)
+        extended_doc = (
+            f"{definition.description or ''}\n\n"
+            "IMPORTANT INSTRUCTIONS FOR ALL AGENTS:\n"
+            "1. When status is 'completed': Serve the generated image directly to the user by outputting BOTH:\n"
+            "   - Markdown image embed: `![Generated Image](asset_url)`\n"
+            "   - Direct text hyperlink: `[Open / Download Image](asset_url)` directly below it.\n"
+            "2. DO NOT call any internal image viewing tools on the returned asset.\n"
+            "3. DO NOT attempt to inspect, download, or decode image bytes.\n"
+            "4. If status is 'running', you MUST call `get_job(prompt_id=...)` to check progress until status is 'completed'."
+        )
+        _tool_impl.__doc__ = extended_doc
+        mcp.tool(name=definition.tool_name, description=extended_doc)(_tool_impl)
         logger.info(
             "Registered MCP tool '%s' for workflow '%s'",
             definition.tool_name,

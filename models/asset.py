@@ -41,7 +41,7 @@ class AssetRecord:
     session_id: Optional[str] = None
     
     def get_asset_url(self, base_url: str) -> str:
-        """Get asset URL for a given ComfyUI base URL.
+        """Get asset URL for a given base URL.
         
         Handles URL encoding for special characters in filenames and subfolders.
         Also normalizes base_url (removes trailing slashes).
@@ -53,7 +53,15 @@ class AssetRecord:
         encoded_filename = quote(self.filename, safe='')
         encoded_subfolder = quote(self.subfolder, safe='') if self.subfolder else ''
         
-        # Build URL with proper encoding
+        # If base_url is an MCP server URL (not direct ComfyUI port 8188 or containing /assets),
+        # use the /assets static endpoint
+        if "/assets" in base_url or not (":8188" in base_url or base_url.endswith("/view")):
+            if encoded_subfolder:
+                return f"{base_url}/assets/{encoded_subfolder}/{encoded_filename}"
+            else:
+                return f"{base_url}/assets/{encoded_filename}"
+        
+        # Build ComfyUI direct URL with proper encoding
         if encoded_subfolder:
             return f"{base_url}/view?filename={encoded_filename}&subfolder={encoded_subfolder}&type={self.folder_type}"
         else:

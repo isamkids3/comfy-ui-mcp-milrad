@@ -51,6 +51,15 @@ def register_job_tools(
         Polls ComfyUI's /history/{prompt_id} endpoint to check if a job
         has completed and retrieve its outputs. This is the primary
         way to check job completion status.
+
+        IMPORTANT FOR AGENTS:
+        1. If status is 'running' or 'queued', call `get_job(prompt_id=...)` again in a few seconds.
+        2. When status is 'completed':
+           - Serve the generated image directly to the user by outputting BOTH:
+             * Markdown image embed: `![Generated Image](asset_url)`
+             * Direct text hyperlink: `[Open / Download Image](asset_url)` directly below it.
+           - DO NOT call any internal image viewing tools.
+           - DO NOT attempt to inspect, download, or decode image bytes.
         
         Args:
             prompt_id: The prompt ID returned from workflow submission
@@ -59,7 +68,8 @@ def register_job_tools(
             Dict with:
             - status: "completed", "running", "queued", "processing", "error", or "not_found"
             - prompt_id: The prompt ID
-            - outputs: Output data if completed (same format as generation tools)
+            - asset_url: Public HTTPS link to the generated asset (e.g. https://<domain>/assets/<filename>)
+            - inline_preview_base64: Base64 data URI preview thumbnail (if image)
             - error: Error information if the job failed
             - history: Full ComfyUI history snapshot for this prompt
             - message: Human-readable status message
@@ -125,13 +135,35 @@ def register_job_tools(
                     
                     # Check if completed with outputs
                     if "outputs" in prompt_data and prompt_data["outputs"]:
-                        return {
+                        from tools.helpers import register_and_build_response
+                        res_dict = {
                             "status": "completed",
                             "prompt_id": prompt_id,
-                            "outputs": prompt_data["outputs"],
-                            "history": prompt_data,
-                            "message": "Job completed successfully"
+                            "raw_outputs": prompt_data["outputs"],
+                            "comfy_history": prompt_data,
                         }
+                        # Extract primary output file for asset registration
+                        for node_id, node_out in prompt_data["outputs"].items():
+                            if isinstance(node_out, dict):
+                                for key in ("images", "gifs", "videos", "audio", "image"):
+                                    if key in node_out and isinstance(node_out[key], list) and len(node_out[key]) > 0:
+                                        first_item = node_out[key][0]
+                                        if isinstance(first_item, dict):
+                                            res_dict["filename"] = first_item.get("filename", "")
+                                            res_dict["subfolder"] = first_item.get("subfolder", "")
+                                            res_dict["folder_type"] = first_item.get("type", "output")
+                                            break
+
+                        resp = register_and_build_response(
+                            res_dict,
+                            workflow_id="async_job",
+                            asset_registry=asset_registry,
+                            tool_name="get_job",
+                            return_inline_preview=False
+                        )
+                        resp["status"] = "completed"
+                        resp["message"] = "Job completed successfully"
+                        return resp
                     else:
                         # History exists but no outputs yet (might be in transition)
                         return {

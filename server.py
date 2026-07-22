@@ -1,5 +1,6 @@
 """ComfyUI MCP Server - Main entry point"""
 
+import json
 import logging
 import os
 import sys
@@ -11,6 +12,7 @@ from typing import AsyncIterator
 import requests
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from comfyui_client import ComfyUIClient
 from managers.asset_registry import AssetRegistry
@@ -47,7 +49,7 @@ def load_dotenv():
                         key = key.strip()
                         val = val.strip().strip("'\"")
                         if key:
-                            os.environ[key] = val
+                            os.environ.setdefault(key, val)
         except Exception as e:
             logger.warning(f"Failed to load .env file: {e}")
 
@@ -146,16 +148,17 @@ def wait_for_comfyui(base_url: str, max_retries: int = COMFYUI_MAX_RETRIES,
 # Print startup banner
 print_startup_banner()
 
-# Check ComfyUI availability before initializing clients
-if not check_comfyui_available(COMFYUI_URL):
-    if not wait_for_comfyui(COMFYUI_URL):
-        print("\n" + "=" * 70)
-        print("[X] ERROR: ComfyUI is not available after all retry attempts!")
-        print("=" * 70)
-        print(f"  Please ensure ComfyUI is running at: {COMFYUI_URL}")
-        print("  Start ComfyUI first, then restart this server.")
-        print("=" * 70 + "\n")
-        sys.exit(1)
+# Check ComfyUI availability before initializing clients unless explicitly skipped (e.g., in test environments)
+if not os.getenv("COMFY_SKIP_HEALTHCHECK"):
+    if not check_comfyui_available(COMFYUI_URL):
+        if not wait_for_comfyui(COMFYUI_URL):
+            print("\n" + "=" * 70)
+            print("[X] ERROR: ComfyUI is not available after all retry attempts!")
+            print("=" * 70)
+            print(f"  Please ensure ComfyUI is running at: {COMFYUI_URL}")
+            print("  Start ComfyUI first, then restart this server.")
+            print("=" * 70 + "\n")
+            sys.exit(1)
 
 # Global ComfyUI client (fallback since context isn't available)
 comfyui_client = ComfyUIClient(COMFYUI_URL)
@@ -209,14 +212,150 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         logger.info("Shutting down MCP server")
 
 
-# Initialize FastMCP with lifespan and port configuration
-# Using port 9000 for consistency with previous version
-# Enable stateless_http to avoid requiring session management
+# Transport security configuration for DNS rebinding & origin validation
+raw_origins = os.getenv("MCP_ALLOWED_ORIGINS")
+raw_hosts = os.getenv("MCP_ALLOWED_HOSTS")
+
+if raw_origins or raw_hosts:
+    allowed_origins = [o.strip() for o in raw_origins.split(",")] if raw_origins else ["*"]
+    allowed_hosts = [h.strip() for h in raw_hosts.split(",")] if raw_hosts else ["*"]
+    transport_security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
+else:
+    transport_security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    )
+
+# Host & Port configuration
+MCP_HOST = os.getenv("MCP_HOST", os.getenv("FASTMCP_HOST", "127.0.0.1"))
+MCP_PORT = int(os.getenv("MCP_PORT", os.getenv("FASTMCP_PORT", "9000")))
+
+
+class APIKeyAuthMiddleware:
+    """ASGI Middleware enforcing HTTP Bearer token authentication."""
+
+    def __init__(self, app, api_key: str | None = None):
+        self.app = app
+        self.api_key = api_key
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            # Skip API key check for public static asset routes (/assets/*)
+            if not path.startswith("/assets"):
+                expected_key = self.api_key or os.getenv("MCP_API_KEY")
+                if expected_key:
+                    auth_header = None
+                    for key, val in scope.get("headers", []):
+                        if key.lower() == b"authorization":
+                            auth_header = val.decode("utf-8")
+                            break
+
+                    if not auth_header or not auth_header.startswith("Bearer "):
+                        # 401 Unauthorized for missing or malformed auth header
+                        response_body = json.dumps({
+                            "error": "Unauthorized",
+                            "message": "Missing or invalid Authorization header. Expected 'Authorization: Bearer <MCP_API_KEY>'"
+                        }).encode("utf-8")
+                        await send({
+                            "type": "http.response.start",
+                            "status": 401,
+                            "headers": [
+                                (b"content-type", b"application/json"),
+                                (b"www-authenticate", b'Bearer realm="MCP"'),
+                                (b"content-length", str(len(response_body)).encode("utf-8")),
+                            ],
+                        })
+                        await send({
+                            "type": "http.response.body",
+                            "body": response_body,
+                        })
+                        return
+
+                    token = auth_header[7:].strip()
+                    if token != expected_key:
+                        # 403 Forbidden for incorrect API key
+                        response_body = json.dumps({
+                            "error": "Forbidden",
+                            "message": "Invalid API key"
+                        }).encode("utf-8")
+                        await send({
+                            "type": "http.response.start",
+                            "status": 403,
+                            "headers": [
+                                (b"content-type", b"application/json"),
+                                (b"content-length", str(len(response_body)).encode("utf-8")),
+                            ],
+                        })
+                        await send({
+                            "type": "http.response.body",
+                            "body": response_body,
+                        })
+                        return
+
+        await self.app(scope, receive, send)
+
+
+def setup_ngrok_tunnel(port: int, authtoken: str | None = None, domain: str | None = None) -> str | None:
+    """Start ngrok tunnel programmatically using pyngrok."""
+    try:
+        # pyrefly: ignore [missing-import]
+        from pyngrok import ngrok
+        if authtoken:
+            ngrok.set_auth_token(authtoken)
+        domain = domain or os.getenv("NGROK_DOMAIN")
+        kwargs = {}
+        if domain:
+            kwargs["domain"] = domain
+        tunnel = ngrok.connect(port, **kwargs)
+        logger.info(f"Established ngrok tunnel: {tunnel.public_url}")
+        return tunnel.public_url
+    except Exception as e:
+        logger.warning(f"Failed to start ngrok tunnel: {e}")
+        return None
+
+
+def run_streamable_http_server(mcp_server: FastMCP):
+    """Run streamable-http transport wrapped with APIKeyAuthMiddleware and static asset routes."""
+    import anyio
+    import uvicorn
+    from starlette.staticfiles import StaticFiles
+
+    async def _run():
+        starlette_app = mcp_server.streamable_http_app()
+
+        # Mount static asset route if COMFYUI_OUTPUT_ROOT is configured and exists
+        output_root = os.getenv("COMFYUI_OUTPUT_ROOT")
+        if output_root and os.path.exists(output_root):
+            logger.info(f"Mounting static asset endpoint /assets -> {output_root}")
+            starlette_app.mount("/assets", StaticFiles(directory=output_root), name="assets")
+
+        authenticated_app = APIKeyAuthMiddleware(starlette_app)
+
+        config = uvicorn.Config(
+            authenticated_app,
+            host=mcp_server.settings.host,
+            port=mcp_server.settings.port,
+            log_level=mcp_server.settings.log_level.lower(),
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    anyio.run(_run)
+
+
+# Initialize FastMCP with lifespan, security, and port configuration
 mcp = FastMCP(
     "ComfyUI_MCP_Server",
+    instructions="When rendering generated images, always output both a Markdown image embed (![Image](url)) AND an explicit clickable text link ([Open Image](url)) below it.",
     lifespan=app_lifespan,
-    port=9000,
-    stateless_http=True
+    host=MCP_HOST,
+    port=MCP_PORT,
+    stateless_http=True,
+    transport_security=transport_security,
 )
 
 # Register all MCP tools
@@ -252,16 +391,39 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print("\n[*] Server stopped.")
     else:
+        # Resolve public URL and ngrok tunnel setup
+        public_url = os.getenv("MCP_PUBLIC_URL")
+        enable_ngrok = os.getenv("ENABLE_NGROK", "false").lower() in ("true", "1", "yes")
+        ngrok_token = os.getenv("NGROK_AUTHTOKEN")
+
+        if not public_url and (enable_ngrok or ngrok_token):
+            logger.info("Auto-starting built-in ngrok tunnel...")
+            tunnel_url = setup_ngrok_tunnel(MCP_PORT, ngrok_token)
+            if tunnel_url:
+                public_url = tunnel_url
+
+        if public_url:
+            asset_registry.comfyui_base_url = public_url.rstrip("/")
+            logger.info(f"Set AssetRegistry base URL to public endpoint: {public_url}")
+
         print("\n" + "=" * 70)
         print("[+] Server Ready".center(70))
         print("=" * 70)
         print(f"  Transport: streamable-http")
-        print(f"  Endpoint: http://127.0.0.1:9000/mcp")
+        print(f"  Local Endpoint: http://{MCP_HOST}:{MCP_PORT}/mcp")
+        if public_url:
+            print(f"  Public Endpoint: {public_url.rstrip('/')}/mcp")
+            print(f"  Public Assets: {public_url.rstrip('/')}/assets/")
+        if os.getenv("MCP_API_KEY"):
+            print("  Authentication: Enabled (Bearer Token)")
+        else:
+            print("  Authentication: Disabled (MCP_API_KEY not set)")
         print(f"[+] ComfyUI verified at: {COMFYUI_URL}")
         print("=" * 70 + "\n")
-        logger.info("Starting MCP server with streamable-http transport on http://127.0.0.1:9000/mcp")
+        logger.info(f"Starting MCP server with streamable-http transport on http://{MCP_HOST}:{MCP_PORT}/mcp")
         logger.info(f"ComfyUI verified at: {COMFYUI_URL}")
         try:
-            mcp.run(transport="streamable-http")
+            run_streamable_http_server(mcp)
         except KeyboardInterrupt:
             print("\n[*] Server stopped.")
+

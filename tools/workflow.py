@@ -41,6 +41,11 @@ def register_workflow_tools(
     ) -> dict:
         """Run a saved ComfyUI workflow with constrained parameter overrides.
         
+        IMPORTANT INSTRUCTIONS FOR ALL AGENTS:
+        1. When status is 'completed': Serve the generated image directly to the user by outputting BOTH:
+           - Markdown image embed: `![Generated Image](asset_url)`
+           - Direct text hyperlink: `[Open / Download Image](asset_url)` directly below it.
+        
         Args:
             workflow_id: The workflow ID (filename stem, e.g., "generate_image")
             overrides: Optional dict of parameter overrides (e.g., {"prompt": "a cat", "width": 1024})
