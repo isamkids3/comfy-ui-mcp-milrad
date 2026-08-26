@@ -327,11 +327,15 @@ def run_streamable_http_server(mcp_server: FastMCP):
     async def _run():
         starlette_app = mcp_server.streamable_http_app()
 
-        # Mount static asset route if COMFYUI_OUTPUT_ROOT is configured and exists
+        # Mount static asset route if COMFYUI_OUTPUT_ROOT is configured
         output_root = os.getenv("COMFYUI_OUTPUT_ROOT")
-        if output_root and os.path.exists(output_root):
-            logger.info(f"Mounting static asset endpoint /assets -> {output_root}")
-            starlette_app.mount("/assets", StaticFiles(directory=output_root), name="assets")
+        if output_root:
+            try:
+                os.makedirs(output_root, exist_ok=True)
+                logger.info(f"Mounting static asset endpoint /assets -> {output_root}")
+                starlette_app.mount("/assets", StaticFiles(directory=output_root), name="assets")
+            except Exception as e:
+                logger.warning(f"Could not mount static asset endpoint for {output_root}: {e}")
 
         authenticated_app = APIKeyAuthMiddleware(starlette_app)
 

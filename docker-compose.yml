@@ -1,0 +1,34 @@
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: comfyui-mcp-server
+    restart: unless-stopped
+    ports:
+      - "${MCP_PORT:-9000}:${MCP_PORT:-9000}"
+    env_file:
+      - .env
+    volumes:
+      # Mount configurable output directory from host into container
+      # Uses host path specified in COMFYUI_OUTPUT_ROOT or defaults to ./mcp_images
+      - "${COMFYUI_OUTPUT_ROOT:-./mcp_images}:${COMFYUI_OUTPUT_ROOT:-/app/mcp_images}"
+    extra_hosts:
+      # Enables communication with ComfyUI running natively on the host (e.g. PGX) via host.docker.internal
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${MCP_PORT:-9000}/mcp || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-mcp-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - mcp-server

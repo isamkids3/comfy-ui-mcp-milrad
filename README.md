@@ -43,6 +43,23 @@ The server listens at:
 http://127.0.0.1:9000/mcp
 ```
 
+### Docker Compose & Cloudflare Tunnel (Production / PGX)
+
+To run the MCP server inside Docker alongside a Cloudflare Tunnel:
+
+```bash
+# 1. Copy environment template
+cp .env.example .env
+
+# 2. Edit .env to set your CLOUDFLARE_TUNNEL_TOKEN, MCP_PUBLIC_URL, and COMFYUI_OUTPUT_ROOT
+nano .env
+
+# 3. Start containers
+docker compose up -d --build
+```
+
+See [docs/DOCKER_CLOUDFLARE_SETUP.md](docs/DOCKER_CLOUDFLARE_SETUP.md) for step-by-step setup instructions.
+
 ### 4) Verify it works (no AI client required)
 
 Run the included test client:
