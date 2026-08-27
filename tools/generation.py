@@ -182,6 +182,15 @@ def register_workflow_generation_tools(
                                     # Replace parameter value with ComfyUI filename
                                     bound.arguments[k] = upload_res.get("name", filename)
                                     logger.info(f"Automatically uploaded image '{k}': {v} -> {bound.arguments[k]}")
+                            else:
+                                # Path is not a file on the server. Guide agent to call upload_reference_image.
+                                return {
+                                    "error": (
+                                        f"Image file '{v}' was not found on the server. "
+                                        f"If this file is on your local client/laptop, you MUST call `upload_reference_image(image_base64=...)` "
+                                        f"first to upload the image data to ComfyUI, then use the returned filename (e.g. '{os.path.basename(v)}') in `{definition.tool_name}`."
+                                    )
+                                }
                         except ValueError as e:
                             if "Security error" in str(e):
                                 return {"error": str(e)}
@@ -344,7 +353,8 @@ def register_workflow_generation_tools(
             "   - Direct text hyperlink: `[Open / Download Image](asset_url)` directly below it.\n"
             "2. DO NOT call any internal image viewing tools on the returned asset.\n"
             "3. DO NOT attempt to inspect, download, or decode image bytes.\n"
-            "4. If status is 'running', you MUST call `get_job(prompt_id=...)` to check progress until status is 'completed'."
+            "4. If status is 'running', you MUST call `get_job(prompt_id=...)` to check progress until status is 'completed'.\n"
+            "5. FOR INPUT/REFERENCE IMAGES: Do NOT pass local file paths (e.g., '/Users/...', 'C:\\...'). Local laptop files DO NOT exist on the remote server. You MUST call `upload_reference_image(image_base64=...)` first to upload the image data to ComfyUI, then pass the returned filename (e.g., 'image.png') to this tool."
         )
         _tool_impl.__doc__ = extended_doc
         mcp.tool(name=definition.tool_name, description=extended_doc)(_tool_impl)

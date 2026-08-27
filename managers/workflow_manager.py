@@ -43,6 +43,13 @@ PLACEHOLDER_DESCRIPTIONS = {
     "duration": "Video duration in seconds. Default: 5.",
     "fps": "Frames per second for video output. Default: 16.",
     "aspect_ratio": "Aspect ratio of the generated image. Allowed values: '1:1 (Square)', '2:3 (Portrait Photo)', '3:2 (Photo)', '3:4 (Portrait Standard)', '4:3 (Standard)', '9:16 (Portrait Widescreen)', '16:9 (Widescreen)', '21:9 (Ultrawide)'. Default: '9:16 (Portrait Widescreen)'.",
+    "image_path": "Filename of an image in ComfyUI's input directory (e.g. 'photo.png'). Do NOT pass local file paths like '/Users/...' or 'C:\\...'. For local client images, upload them first via upload_reference_image.",
+    "init_image": "Filename of an initial reference image in ComfyUI's input directory (e.g. 'input.png'). Do NOT pass local file paths like '/Users/...'. Upload local images first via upload_reference_image.",
+    "reference_image": "Filename of a reference image in ComfyUI's input directory (e.g. 'ref.png'). Upload local images first via upload_reference_image.",
+    "image1": "Filename of 1st reference image in ComfyUI's input directory. Upload local images first via upload_reference_image.",
+    "image2": "Filename of 2nd reference image in ComfyUI's input directory. Upload local images first via upload_reference_image.",
+    "image3": "Filename of 3rd reference image in ComfyUI's input directory. Upload local images first via upload_reference_image.",
+    "mask_image": "Filename of masked image in ComfyUI's input directory. Upload local images first via upload_reference_image.",
 }
 DEFAULT_OUTPUT_KEYS = ("images", "image", "gifs", "gif")
 AUDIO_OUTPUT_KEYS = ("audio", "audios", "sound", "files")
