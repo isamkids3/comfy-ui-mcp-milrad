@@ -20,10 +20,11 @@ def register_upload_tools(mcp: FastMCP, comfyui_client):
         subfolder: str = "",
         overwrite: bool = True,
     ) -> dict:
-        """Upload a reference image to ComfyUI for use with IP-Adapter styled image generation.
+        """Upload a local or reference image to ComfyUI before executing image-to-image or reference workflows.
 
-        The image is uploaded to ComfyUI's input directory so it can be referenced
-        by workflows that use LoadImage nodes (e.g., generate_styled_image).
+        ALWAYS call this tool first whenever the user provides a local image file or base64 image data.
+        The image is uploaded to ComfyUI's input directory so it can be referenced in tools like
+        `image_image`, `image_image_2ref`, `image_image_3ref`, `mask_image_image`, or `image_text_video`.
 
         Args:
             image_base64: Base64-encoded image data. Can optionally include a
