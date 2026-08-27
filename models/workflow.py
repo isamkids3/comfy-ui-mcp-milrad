@@ -2,7 +2,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 
 @dataclass
@@ -23,3 +23,4 @@ class WorkflowToolDefinition:
     template: Dict[str, Any]
     parameters: "OrderedDict[str, WorkflowParameter]"
     output_preferences: Sequence[str]
+    estimated_time: Optional[str] = None

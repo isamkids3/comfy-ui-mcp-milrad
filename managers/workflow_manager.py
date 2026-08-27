@@ -133,6 +133,7 @@ class WorkflowManager:
                 "id": workflow_id,
                 "name": metadata.get("name", workflow_id.replace("_", " ").title()),
                 "description": metadata.get("description", f"Execute the '{workflow_id}' workflow."),
+                "estimated_time": metadata.get("estimated_time"),
                 "available_inputs": available_inputs,
                 "defaults": workflow_defaults,
                 "updated_at": metadata.get("updated_at"),
@@ -330,6 +331,7 @@ class WorkflowManager:
                 template=workflow,
                 parameters=parameters,
                 output_preferences=self._guess_output_preferences(workflow),
+                estimated_time=metadata.get("estimated_time"),
             )
             # Store initial mtime for cache invalidation
             try:

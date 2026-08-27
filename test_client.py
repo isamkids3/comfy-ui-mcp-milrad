@@ -12,13 +12,31 @@ from typing import Any, Dict, Optional
 
 import requests
 
+import os
+from pathlib import Path
+
+# Load .env if present
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
 # Configuration
-MCP_ENDPOINT = "http://127.0.0.1:9000/mcp"
+public_url = os.getenv("MCP_PUBLIC_URL")
+default_url = f"{public_url.rstrip('/')}/mcp" if public_url else "http://127.0.0.1:9000/mcp"
+MCP_ENDPOINT = os.getenv("MCP_ENDPOINT", default_url)
 REQUEST_TIMEOUT = 300  # 5 minutes for long-running operations
 REQUEST_HEADERS = {
     "Content-Type": "application/json",
     "Accept": "application/json, text/event-stream",
 }
+api_key = os.getenv("MCP_API_KEY")
+if api_key:
+    REQUEST_HEADERS["Authorization"] = f"Bearer {api_key}"
 
 
 def parse_sse_response(response_text: str) -> dict:

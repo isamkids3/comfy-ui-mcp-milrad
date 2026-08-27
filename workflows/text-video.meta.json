@@ -1,6 +1,7 @@
 {
   "name": "text_video",
   "description": "Generate a new video from a text description. The prompt parameter accepts a natural language description of the visual scene and movement. The duration parameter specifies the length of the video in seconds and must not exceed 30 seconds.",
+  "estimated_time": "124s (5s video), 208s (10s video), 541s (30s video)",
   "constraints": {
     "duration": {
       "min": 1,

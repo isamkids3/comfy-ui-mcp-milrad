@@ -335,8 +335,9 @@ def register_workflow_generation_tools(
         _tool_impl.__signature__ = inspect.Signature(parameters, return_annotation=dict)
         _tool_impl.__annotations__ = annotations
         _tool_impl.__name__ = f"tool_{definition.tool_name}"
+        time_info = f" (Estimated Generation Time: {definition.estimated_time})" if definition.estimated_time else ""
         extended_doc = (
-            f"{definition.description or ''}\n\n"
+            f"{definition.description or ''}{time_info}\n\n"
             "IMPORTANT INSTRUCTIONS FOR ALL AGENTS:\n"
             "1. When status is 'completed': Serve the generated image directly to the user by outputting BOTH:\n"
             "   - Markdown image embed: `![Generated Image](asset_url)`\n"

@@ -1,6 +1,7 @@
 {
   "name": "image_text_video",
   "description": "Generate a new video from an initial reference image and a text description. The init_image parameter accepts a reference image to guide/animate. The prompt parameter accepts a natural language description of the visual movement and context. The duration parameter specifies the length of the video in seconds and must not exceed 30 seconds.",
+  "estimated_time": "290-310s (for 15s video)",
   "constraints": {
     "duration": {
       "min": 1,
